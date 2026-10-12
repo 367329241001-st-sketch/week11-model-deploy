@@ -1,64 +1,68 @@
 import streamlit as st
-import pandas as pd
 import joblib
+import os
+from PIL import Image
+import numpy as np
 
-# 1. โหลดไฟล์ model.pkl ด้วย joblib ตอนเริ่มแอป
+# 1. กำหนดแถบด้านข้าง (Sidebar) สำหรับเลือกโมเดล (*.pkcls)
+st.sidebar.title("เลือกโมเดล")
+
+# ค้นหาไฟล์ .pkcls ในโฟลเดอร์ปัจจุบัน
+model_files = [f for f in os.listdir('.') if f.endswith('.pkcls')]
+if not model_files:
+    # หากไม่พบไฟล์ ให้ใส่ชื่อไฟล์ตัวอย่างไว้เป็นค่าเริ่มต้น
+    model_files = ["W10-NN-model.pkcls"]
+
+# ตัวเลือกให้ผู้ใช้เลือกโมเดลเองได้[cite: 3, 8]
+selected_model = st.sidebar.selectbox("ไฟล์โมเดล (*.pkcls)", model_files)
+
+# 2. โหลดไฟล์ .pkcls ด้วย joblib
 @st.cache_resource
-def load_model():
-    return joblib.load('model.pkl')
+def load_selected_model(model_name):
+    return joblib.load(model_name)
 
-# เรียกใช้งานการโหลดโมเดล
 try:
-    model = load_model()
+    model = load_selected_model(selected_model)
+    st.sidebar.success(f"โหลดโมเดลสำเร็จ: {selected_model}")[cite: 3]
 except Exception as e:
-    st.error(f"ไม่สามารถโหลดไฟล์ model.pkl ได้ กรุณาตรวจสอบว่าวางไฟล์ไว้ในโฟลเดอร์เดียวกันหรือไม่: {e}")
-    st.stop()
+    st.sidebar.error(f"ไม่สามารถโหลดโมเดล {selected_model} ได้")
 
-# 2. แสดงหัวข้อแอปด้วย st.title
-st.title("ระบบวิเคราะห์และทำนายการยกเลิกบริการลูกค้า (Customer Churn Prediction)")
-st.write("กรุณากรอกข้อมูลลูกค้าเพื่อทำนายแนวโน้มการยกเลิกบริการ")
+# แสดงข้อมูลคลาสที่ทำนายได้บน Sidebar[cite: 3]
+st.sidebar.write("คลาสที่ทำนายได้: covid, normal, pneumonia")[cite: 3]
 
-# 3. สร้างช่องให้ผู้ใช้กรอกค่าตัวแปรต้น (features)
-st.subheader("กรอกข้อมูลตัวแปรต้น (Features)")
+# ----------------------------------------------------
 
-# ตัวอย่างช่องกรอกข้อมูลตามชนิดของคอลัมน์
-gender = st.selectbox("เพศ (gender)", ["Male", "Female"])
-senior_citizen = st.selectbox("เป็นผู้สูงอายุหรือไม่ (SeniorCitizen)", [0, 1])
-partner = st.selectbox("มีคู่สมรสหรือไม่ (Partner)", ["Yes", "No"])
-tenure = st.number_input("ระยะเวลาที่เป็นลูกค้า/เดือน (tenure)", min_value=0, max_value=120, value=12)
-contract = st.selectbox("ประเภทสัญญา (Contract)", ["Month-to-month", "One year", "Two year"])
-paperless_billing = st.selectbox("ใบแจ้งหนี้แบบไม่ใช้กระดาษ (PaperlessBilling)", ["Yes", "No"])
-monthly_charges = st.number_input("ค่าบริการรายเดือน (MonthlyCharges)", min_value=0.0, value=70.0, step=0.5)
-total_charges = st.number_input("ค่าบริการรวมทั้งหมด (TotalCharges)", min_value=0.0, value=840.0, step=1.0)
+# 3. แสดงหัวข้อแอปด้วย st.title[cite: 3, 8]
+st.title("โปรแกรมจำแนกโรค Covid-19 จากภาพ X-ray")[cite: 3, 8]
 
-# 4. มีปุ่ม "ทำนายผล" (st.button) เมื่อกดแล้วให้นำค่าไปจัดรูปแบบแล้วส่งเข้าโมเดล
-if st.button("ทำนายผล"):
-    # รวมข้อมูลที่กรอกเข้ามาเป็น DataFrame 1 แถว
-    input_data = pd.DataFrame([{
-        'gender': gender,
-        'SeniorCitizen': senior_citizen,
-        'Partner': partner,
-        'tenure': tenure,
-        'Contract': contract,
-        'PaperlessBilling': paperless_billing,
-        'MonthlyCharges': monthly_charges,
-        'TotalCharges': total_charges
-    }])
+# 4. ส่วนรับไฟล์ภาพ X-ray สำหรับทำนายผล[cite: 3]
+st.subheader("อัปโหลดภาพ X-ray")[cite: 3]
+uploaded_file = st.file_uploader("เลือกไฟล์ภาพ (.png, .jpg, .jpeg)", type=["png", "jpg", "jpeg"])[cite: 3]
 
-    # ทำ One-Hot Encoding ข้อมูลข้อความให้เหมือนตอนฝึกโมเดล
-    input_encoded = pd.get_dummies(input_data)
+if uploaded_file is not None:
+    # แสดงภาพที่ผู้ใช้อัปโหลด
+    image = Image.open(uploaded_file)
+    st.image(image, caption="ภาพ X-ray ที่อัปโหลด", width=300)
 
-    # จัดระเบียบคอลัมน์ให้ตรงกับที่โมเดลเคยใช้ตอนฝึก (เติมคอลัมน์ที่ขาดด้วยค่า 0)
-    if hasattr(model, 'feature_names_in_'):
-        expected_cols = model.feature_names_in_
-        input_encoded = input_encoded.reindex(columns=expected_cols, fill_value=0)
+    # 5. ปุ่ม "ทำนายผล" (st.button)[cite: 3, 8]
+    if st.button("ทำนายผล"):
+        try:
+            # แปลงไฟล์ภาพให้เป็น Array ตัวเลข เพื่อส่งเข้าโมเดล
+            # (หมายเหตุ: ให้ปรับขนาดภาพ (128, 128) ให้ตรงกับขนาดที่เคยใช้ฝึกโมเดล)
+            img_resized = image.convert('RGB').resize((128, 128))
+            img_array = np.array(img_resized).flatten().reshape(1, -1)
 
-    # ส่งข้อมูลเข้าโมเดลเพื่อทำนายผล[cite: 7]
-    prediction = model.predict(input_encoded)[0]
+            # ส่งเข้าโมเดลเพื่อทำนายผล[cite: 8]
+            prediction = model.predict(img_array)[0]
 
-    # 5. แสดงผลการทำนายด้วย st.success หรือ st.warning[cite: 7]
-    st.subheader("ผลการทำนาย")
-    if prediction == 'Yes' or prediction == 1:
-        st.warning("⚠️ ลูกค้ามีแนวโน้มที่จะ **ยกเลิกบริการ (Churn)**")
-    else:
-        st.success("✅ ลูกค้ามีแนวโน้มที่จะ **ใช้งานต่อ (No Churn)**")
+            # 6. แสดงผลการทำนายด้วย st.success[cite: 3, 8]
+            st.subheader("ผลการทำนาย")
+            st.success(f"ผลการจำแนกโรค: **{prediction}**")[cite: 3, 8]
+
+        except Exception as e:
+            st.error(f"เกิดข้อผิดพลาดขณะทำนายผล: {e}")
+            st.info("💡 ข้อแนะนำ: ตรวจสอบว่าขั้นตอน Preprocessing ภาพ (เช่น ขนาด pixels / RGB) ตรงกับตอนฝึกโมเดลหรือไม่")
+
+
+    
+   
