@@ -28,7 +28,7 @@ except Exception as e:
     st.sidebar.error(f"ไม่สามารถโหลดโมเดล {selected_model} ได้")
 
 # แสดงข้อมูลคลาสที่ทำนายได้บน Sidebar[cite: 3]
-st.sidebar.write("คลาสที่ทำนายได้: covid, normal, pneumonia")[cite: 3]
+st.sidebar.write("คลาสที่ทำนายได้: covid, normal, pneumonia")
 
 # ----------------------------------------------------
 
